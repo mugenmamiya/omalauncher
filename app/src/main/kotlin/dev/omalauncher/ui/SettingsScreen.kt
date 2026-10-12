@@ -1,6 +1,8 @@
 package dev.omalauncher.ui
 
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import dev.omalauncher.Runtime
 import dev.omalauncher.linux.JobState
 import dev.omalauncher.linux.LinuxState
+import dev.omalauncher.linux.Proot
 
 /** The launcher's settings hub, opened from the gear next to the drawer's search. */
 @Composable
@@ -52,7 +55,7 @@ fun SettingsScreen(
                 else -> "not installed · install Arch Linux for terminal apps and agents"
             }
         val rows =
-            listOf(
+            listOfNotNull(
                 Triple("style", runtime.themes.current?.title ?: "theme, background, home screen", onStyle),
                 Triple("linux", linuxStatus, onLinux),
                 if (installed) {
@@ -61,6 +64,16 @@ fun SettingsScreen(
                     Triple("coding agents", "needs linux", onLinux)
                 },
                 Triple("packages", if (installed) "install Linux apps and tools with pacman and the AUR" else "needs linux", if (installed) onPackages else onLinux),
+                // Android's own switch for access to all files; Linux gets the storage with its next command.
+                if (installed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    val subtitle = if (Proot.storageAllowed()) "linux sees /sdcard and SD cards under /storage" else "let linux see /sdcard and SD cards under /storage"
+                    Triple("android files", subtitle) {
+                        val app = Uri.fromParts("package", context.packageName, null)
+                        context.startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, app).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                } else {
+                    null
+                },
                 Triple("widget store", "add widgets to the home screen", onStore),
                 Triple("android settings", "the phone's system settings") {
                     context.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

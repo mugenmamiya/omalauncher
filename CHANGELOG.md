@@ -8,6 +8,8 @@ Dates are when the build was uploaded to Play.
 
 - Apps from a work profile show up next to your own, marked with a briefcase,
   and dimmed while work apps are paused.
+- Linux can see the phone's files and SD cards, at `/sdcard` and `/storage`, once
+  "android files" is turned on in settings.
 
 ## 0.5.0 (versionCode 10) – 2026-10-11
 
