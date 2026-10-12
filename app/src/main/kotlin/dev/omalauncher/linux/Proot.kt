@@ -1,6 +1,8 @@
 package dev.omalauncher.linux
 
 import android.content.Context
+import android.os.Build
+import android.os.Environment
 import dev.omalauncher.LauncherData
 import dev.omalauncher.upgrade.writeAtomically
 import java.io.File
@@ -54,8 +56,18 @@ class Proot(
      */
     private val cjkFont = File("/system/fonts/NotoSansCJK-Regular.ttc")
 
+    private val fixedBinds = listOf("/tmp" to tmpDir, "/dev/shm" to tmpDir, GUEST_RUNTIME_DIR to runtimeDir) + dataBinds
+
+    /**
+     * Android's shared storage and SD cards, at the paths Android has them; /sdcard is the internal
+     * one. Only with access to all files, which the user turns on in settings: without it Android
+     * shows the app empty directories. Read each time, so the next guest command sees a change.
+     */
+    private val storageBinds: List<Pair<String, File>>
+        get() = if (storageAllowed()) listOf("/storage" to File("/storage"), "/sdcard" to Environment.getExternalStorageDirectory()) else emptyList()
+
     /** Host directories bound over guest paths by [command]. */
-    private val binds = listOf("/tmp" to tmpDir, "/dev/shm" to tmpDir, GUEST_RUNTIME_DIR to runtimeDir) + dataBinds
+    private val binds get() = fixedBinds + storageBinds
 
     /**
      * Where an absolute guest path lives on the Android side, following the
@@ -92,6 +104,8 @@ class Proot(
             host.mkdirs()
             if (rootfs.isDirectory) File(rootfs, guest.removePrefix("/")).mkdirs()
         }
+        // The same for Android's storage, bound once it's allowed; see storageBinds.
+        if (rootfs.isDirectory) for (guest in listOf("storage", "sdcard")) File(rootfs, guest).mkdirs()
         File(rootfs, "var/lib/pacman/db.lck").delete()
         // An empty stand-in, so fontconfig lists the bound font when it reads the directory.
         if (rootfs.isDirectory) {
@@ -192,6 +206,9 @@ class Proot(
 
     companion object {
         const val GUEST_HOME = "/root"
+
+        /** Whether the guest gets Android's shared storage: access to all files, which exists from Android 11. */
+        fun storageAllowed(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
 
         /** XDG_RUNTIME_DIR in the guest, bound to [runtimeDir]. */
         const val GUEST_RUNTIME_DIR = "/run/user/0"
